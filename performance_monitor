@@ -22,6 +22,23 @@ function GetVoltage() {
     $VCGENCMD measure_volts | $SED -E 's/^.*=([0-9.]+).*$/\1/'
 }
 
+function GetFrequencyCapped() {
+    local bits
+    local capped
+
+    bits=$($VCGENCMD get_throttled | cut -d= -f2)
+    capped=$(( bits & 0x00002 ))
+    echo "$capped"
+}
+
+function GetThrottled() {
+    local bits
+    local throttled
+
+    bits=$($VCGENCMD get_throttled | cut -d= -f2)
+    throttled=$(( bits & 0x00004 ))
+    echo "$throttled"
+}
 
 function DoPerformanceLoop() {
     local start_seconds
@@ -33,17 +50,23 @@ function DoPerformanceLoop() {
         local temperature
         local frequency
         local voltage
+        local capped
+        local throttled
 
         current_seconds=$($DATE +%s)
         elapsed=$(( current_seconds - start_seconds ))
         temperature=$(GetSystemTemperature)
         frequency=$(GetCoreFrequency)
         voltage=$(GetVoltage)
+        capped=$(GetFrequencyCapped)
+        throttled=$(GetThrottled)
 
         echo -n "$elapsed"
         echo -en "\\t$temperature"
         echo -en "\\t$frequency"
         echo -en "\\t$voltage"
+        echo -en "\\t$capped"
+        echo -en "\\t$throttled"
         echo
 
         $SLEEP $INTERVAL
