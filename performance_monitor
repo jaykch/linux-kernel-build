@@ -1,11 +1,27 @@
 #!/bin/bash
 
 # what executables will we use?
+declare -r CUT="/usr/bin/cut"
 declare -r DATE="/bin/date"
 declare -r SLEEP="/bin/sleep"
+declare -r SED="/bin/sed"
+declare -r VCGENCMD="/usr/bin/vcgencmd"
 
 # what is our run interval (in seconds)
 declare -r INTERVAL=5
+
+function GetSystemTemperature() {
+    $VCGENCMD measure_temp | $SED -E 's/^.*=([0-9.]+).*$/\1/'
+}
+
+function GetCoreFrequency() {
+    $VCGENCMD measure_clock arm | $CUT -d= -f2
+}
+
+function GetVoltage() {
+    $VCGENCMD measure_volts | $SED -E 's/^.*=([0-9.]+).*$/\1/'
+}
+
 
 function DoPerformanceLoop() {
     local start_seconds
@@ -14,11 +30,20 @@ function DoPerformanceLoop() {
     while : ; do
         local current_seconds
         local elapsed
+        local temperature
+        local frequency
+        local voltage
 
         current_seconds=$($DATE +%s)
         elapsed=$(( current_seconds - start_seconds ))
+        temperature=$(GetSystemTemperature)
+        frequency=$(GetCoreFrequency)
+        voltage=$(GetVoltage)
 
         echo -n "$elapsed"
+        echo -en "\\t$temperature"
+        echo -en "\\t$frequency"
+        echo -en "\\t$voltage"
         echo
 
         $SLEEP $INTERVAL
