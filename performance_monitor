@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# what executables will we use?
+declare -r DATE="/bin/date"
+declare -r SLEEP="/bin/sleep"
+
+# what is our run interval (in seconds)
+declare -r INTERVAL=5
+
+function DoPerformanceLoop() {
+    local start_seconds
+    start_seconds=$($DATE +%s)
+
+    while : ; do
+        local current_seconds
+        local elapsed
+
+        current_seconds=$($DATE +%s)
+        elapsed=$(( current_seconds - start_seconds ))
+
+        echo -n "$elapsed"
+        echo
+
+        $SLEEP $INTERVAL
+    done
+}
+
+
+DoPerformanceLoop
+
