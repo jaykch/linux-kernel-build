@@ -1,11 +1,16 @@
 #!/bin/bash
 
 # declare constants for all executables used
-declare -r APT="/usr/bin/apt"
+declare -r APT_GET="/usr/bin/apt-get"
 declare -r CP="/bin/cp"
+declare -r DPKG="/usr/bin/dpkg"
 declare -r GIT="/usr/bin/git"
+declare -r KILL="/bin/kill"
 declare -r MAKE="/usr/bin/make"
 declare -r SUDO="/usr/bin/sudo"
+declare -r SYSTEMCTL="/bin/systemctl"
+declare -r TAR="/bin/tar"
+declare -r PERF_MON="./performance_monitor"
 
 # declare constants for our git repositories
 declare -r KERNEL_REPO="https://github.com/raspberrypi/linux"
@@ -19,38 +24,152 @@ declare -r PROJECT_DIR="./project"
 # raspberry pi 4 uses kernel7l as the name
 declare -r KERNEL="kernel7l"
 
+# where should we backup the prior kernel files?
+declare -r KERNEL_BACKUP="kernel-backup.tgz"
+
 # packages required for the build
 declare -ar REQUIRED_PACKAGES=(
     "bc"
-    "raspberrypi-kernel-headers"
-    "build-essential"
-    "git"
-    "wget"
     "bison"
+    "build-essential"
     "flex"
+    "git"
     "libssl-dev"
     "make"
-    )
+    "raspberrypi-kernel-headers"
+    "wget"
+)
 
-# install required packages
-$SUDO $APT install "${REQUIRED_PACKAGES[@]}"
 
-# download source from github
-$GIT clone --depth=1 "$KERNEL_REPO" "$KERNEL_DIR"
+function PackageIsInstalled() {
+    # use dpkg to check if the given package is installed
+    # if installed, return code is 0
+    # if not installed, return code is 1
+    local package="$1"
 
-# download config file from github
-$GIT clone --depth=1 "$PROJECT_REPO" "$PROJECT_DIR"
+    installed="$($DPKG --get-selections "$package")"
+    if [[ -n "$installed" ]]; then
+        # if package was returned, it is installed
+        return 0
+    else
+        # no output, package not installed
+        return 1
+    fi
+}
+
+function InstallPackage() {
+    # use apt to install the given package
+    local package="$1"
+    $SUDO $APT_GET -y install "$package"
+}
+
+function CloneOrUpdateRepo() {
+    # clone or update a git repo
+    local repo="$1"
+    local dir="$2"
+
+    if [[ ! -e $dir ]]; then
+        # directory does not exist, clone
+        $GIT clone --depth=1 "$repo" "$dir"
+    else
+        # directory exists, update
+        $GIT -C "$dir" pull
+    fi
+}
+
+function CopyKernelConfig() {
+    # copy the given kernel config to the given kernel source path
+    local config="$1"
+    local path="$2"
+
+    if [[ ! -e $config ]]; then
+        echo "Kernel config $config doesn't exist!"
+        exit 255
+    fi
+    if [[ ! -d $path ]]; then
+        echo "Kernel source directory $path doesn't exist!"
+        exit 255
+    fi
+
+    $CP "$config" "$path"
+}
+
+function BuildKernel() {
+    # build the kernel from the given source directory
+    local source="$1"
+
+    # track child pids so we can signal them
+    local perf_mon_pid
+
+    # start the performance monitor script and save output to file
+    $PERF_MON > kernel_performance_data &
+    # save the process id so we can send a signal later
+    perf_mon_pid=$!
+
+
+    if ! $MAKE -C "$source" -j4 zImage modules dtbs; then
+        # stop performance monitor script before exiting
+        $KILL -USR1 $perf_mon_pid
+        # show message and exit with error
+        echo "Kernel build failed!"
+        exit 255
+    fi
+
+    # stop performance monitor script
+    $KILL -USR1 $perf_mon_pid
+}
+
+function BackupKernelFiles() {
+    # backup all kernel files to the given archive
+    local backup_file="$1"
+    $TAR -czf "$backup_file" -C /boot $KERNEL.img overlays
+}
+
+function InstallKernelFiles() {
+    # install all files required for the new kernel
+    # kernel build directory is the first parameter
+    local kernel_build_dir="$1"
+
+    # install kernel
+    $SUDO $CP "$kernel_build_dir"/arch/arm/boot/zImage /boot/$KERNEL.img
+    # install modules
+    $SUDO $MAKE -C "$kernel_build_dir" modules_install
+    # install device tree files
+    $SUDO $CP "$kernel_build_dir"/arch/arm/boot/dts/*.dtb /boot/
+    $SUDO $CP "$kernel_build_dir"/arch/arm/boot/dts/overlays/*.dtb* /boot/overlays/
+    $SUDO $CP "$kernel_build_dir"/arch/arm/boot/dts/overlays/README /boot/overlays/
+}
+
+function RebootSystem() {
+    # reboot the system
+    $SUDO $SYSTEMCTL reboot
+}
+
+
+
+# ensure required packages are installed
+for package in "${REQUIRED_PACKAGES[@]}"; do
+    if ! PackageIsInstalled "$package"; then
+        InstallPackage "$package"
+    fi
+done
+
+# download repositories from github
+CloneOrUpdateRepo "$KERNEL_REPO"  "$KERNEL_DIR"
+CloneOrUpdateRepo "$PROJECT_REPO" "$PROJECT_DIR"
 
 # copy project kernel config to kernel source
-$CP "$PROJECT_DIR/.config" "$KERNEL_DIR/"
+CopyKernelConfig "$PROJECT_DIR/.config" "$KERNEL_DIR/"
 
 # build the kernel
-$MAKE -j4 zImage modules dtbs
+BuildKernel "$KERNEL_DIR"
 
-# install files
-$SUDO $MAKE modules_install
-$SUDO $CP arch/arm/boot/dts/*.dtb /boot/
-$SUDO $CP arch/arm/boot/dts/overlays/*.dtb* /boot/overlays/
-$SUDO $CP arch/arm/boot/dts/overlays/README /boot/overlays/
-$SUDO $CP arch/arm/boot/zImage /boot/$KERNEL.img
+# backup existing kernel files
+BackupKernelFiles "$KERNEL_BACKUP"
+
+# install the new kernel
+InstallKernelFiles "$KERNEL_DIR"
+
+# reboot into the new kernel
+RebootSystem
 
