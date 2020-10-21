@@ -10,37 +10,66 @@ declare -r VCGENCMD="/usr/bin/vcgencmd"
 # what is our run interval (in seconds)
 declare -r INTERVAL=5
 
+# flag to quit or continue
+declare EXIT_FLAG=0
+
+
+function SetExitFlag() {
+    # set a flag to indicate the loop should exit
+    EXIT_FLAG=1
+}
+
 function GetSystemTemperature() {
+    # extract just the numeric temperature from output
     $VCGENCMD measure_temp | $SED -E 's/^.*=([0-9.]+).*$/\1/'
 }
 
 function GetCoreFrequency() {
+    # extract the frequency value
     $VCGENCMD measure_clock arm | $CUT -d= -f2
 }
 
 function GetVoltage() {
+    # extract just the numeric voltage from output
     $VCGENCMD measure_volts | $SED -E 's/^.*=([0-9.]+).*$/\1/'
 }
 
 function GetFrequencyCapped() {
+    # is the cpu frequency currently capped?
     local bits
     local capped
 
+    # extract the hex value from the output
     bits=$($VCGENCMD get_throttled | cut -d= -f2)
+
+    # capped is indicated by value 0x2
     capped=$(( bits & 0x00002 ))
+    # make it a binary 0 / 1 value
+    if [[ $capped -ne 0 ]]; then
+        capped=1
+    fi
     echo "$capped"
 }
 
 function GetThrottled() {
+    # is the cpu frequency currently throttled?
     local bits
     local throttled
 
+    # extract the hex value from the output
     bits=$($VCGENCMD get_throttled | cut -d= -f2)
+
+    # capped is indicated by value 0x4
     throttled=$(( bits & 0x00004 ))
+    # make it a binary 0 / 1 value
+    if [[ $throttled -ne 0 ]]; then
+        throttled=1
+    fi
     echo "$throttled"
 }
 
 function DoPerformanceLoop() {
+    # get performance stats every $INTERVAL
     local start_seconds
     start_seconds=$($DATE +%s)
 
@@ -53,14 +82,23 @@ function DoPerformanceLoop() {
         local capped
         local throttled
 
+        # if exit flag is set, exit prior to getting data
+        if [[ $EXIT_FLAG -ne 0 ]]; then
+            exit
+        fi
+
+        # calculate elapsed time
         current_seconds=$($DATE +%s)
         elapsed=$(( current_seconds - start_seconds ))
+
+        # gather all metrics
         temperature=$(GetSystemTemperature)
         frequency=$(GetCoreFrequency)
         voltage=$(GetVoltage)
         capped=$(GetFrequencyCapped)
         throttled=$(GetThrottled)
 
+        # output metrics separated by tabs
         echo -n "$elapsed"
         echo -en "\\t$temperature"
         echo -en "\\t$frequency"
@@ -69,10 +107,20 @@ function DoPerformanceLoop() {
         echo -en "\\t$throttled"
         echo
 
+        # if exit flag is set, exit prior to sleeping
+        if [[ $EXIT_FLAG -ne 0 ]]; then
+            exit
+        fi
+
+        # wait for the interval before gathering next set of metrics
         $SLEEP $INTERVAL
     done
 }
 
 
+# trap USR1 so we can exit cleanly
+trap SetExitFlag USR1
+
+# run the loop to gather metrics
 DoPerformanceLoop
 
