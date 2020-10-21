@@ -1,0 +1,82 @@
+#!/bin/bash
+
+# details on controlling the led found at:
+# https://howtoraspberrypi.com/controler-led-verte-raspberry-pi-2/
+
+# details on getting cpu utilization found at:
+# https://stackoverflow.com/questions/9229333/how-to-get-overall-cpu-usage-e-g-57-on-linux
+
+
+# what executables will we use?
+declare -r GREP="/bin/grep"
+declare -r SED="/bin/sed"
+declare -r SLEEP="/bin/sleep"
+declare -r SUDO="/usr/bin/sudo"
+declare -r TEE="/usr/bin/tee"
+declare -r TOP="/usr/bin/top"
+
+# path to led control directory
+declare -r LED="/sys/class/leds/led0"
+
+
+function DoExit() {
+    exit 0
+}
+
+function SetLedTrigger() {
+    # set the trigger for the specified LED
+    local trigger="$1"
+    local led="$2"
+    echo "$trigger" | $SUDO $TEE "$led"/trigger >/dev/null
+}
+
+function LedOn() {
+    echo 1 | sudo tee "$LED/brightness" >/dev/null
+}
+
+function LedOff() {
+    echo 0 | sudo tee "$LED/brightness" >/dev/null
+}
+
+function GetCpuUtilization() {
+    local cpu_idle
+    local cpu_used
+    
+    # get integer component of cpu idle time
+    cpu_idle="$($TOP -bn1 | $GREP "Cpu(s)" | $SED -E 's/.*, *([0-9]*)(.[0-9]*)? id.*/\1/')"
+    # calculate cpu used
+    cpu_used=$(( 100 - cpu_idle ))
+    echo "$cpu_used"
+}
+
+function DoStatusLoop() {
+    local led="$1"
+
+    while : ; do
+        local utilization
+        local on_time
+        local off_time
+
+        utilization="$(GetCpuUtilization)"
+        on_time="$(printf "0.%02d" "$utilization")"
+        off_time="$(printf "0.%02d" "$(( 100 - utilization ))")"
+
+        LedOn
+        $SLEEP "$on_time"
+
+        LedOff
+        $SLEEP "$off_time"
+    done
+}
+
+
+
+# disable any existing trigger
+SetLedTrigger "none" "$LED"
+
+# gracefully exit on USR2 signal
+trap DoExit USR2
+
+# this function loops infinitely
+DoStatusLoop "$LED"
+
