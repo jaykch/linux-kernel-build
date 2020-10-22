@@ -11,6 +11,7 @@ declare -r SUDO="/usr/bin/sudo"
 declare -r SYSTEMCTL="/bin/systemctl"
 declare -r TAR="/bin/tar"
 declare -r PERF_MON="./performance_monitor"
+declare -r STATUS_LED="./status_led"
 
 # declare constants for our git repositories
 declare -r KERNEL_REPO="https://github.com/raspberrypi/linux"
@@ -58,7 +59,7 @@ function PackageIsInstalled() {
 }
 
 function InstallPackage() {
-    # use apt to install the given package
+    # use apt-get to install the given package
     local package="$1"
     $SUDO $APT_GET -y install "$package"
 }
@@ -100,12 +101,17 @@ function BuildKernel() {
 
     # track child pids so we can signal them
     local perf_mon_pid
+    local status_led_pid
 
     # start the performance monitor script and save output to file
     $PERF_MON > kernel_performance_data &
     # save the process id so we can send a signal later
     perf_mon_pid=$!
 
+    # start the status led script
+    $STATUS_LED &
+    # save the process id so we can send a signal later
+    status_led_pid=$!
 
     if ! $MAKE -C "$source" -j4 zImage modules dtbs; then
         # stop performance monitor script before exiting
@@ -117,12 +123,19 @@ function BuildKernel() {
 
     # stop performance monitor script
     $KILL -USR1 $perf_mon_pid
+    # stop the status led script
+    $KILL -USR2 $status_led_pid
 }
 
 function BackupKernelFiles() {
     # backup all kernel files to the given archive
     local backup_file="$1"
-    $TAR -czf "$backup_file" -C /boot $KERNEL.img overlays
+    $TAR -czf "$backup_file" \
+        /boot/$KERNEL.img \
+        /boot/*.dtb \
+        /boot/overlays/*.dtb* \
+        /boot/overlays/README \
+        /lib/modules/"$(uname -r)"
 }
 
 function InstallKernelFiles() {
