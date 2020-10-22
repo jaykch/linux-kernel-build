@@ -24,6 +24,8 @@ declare TRIGGER
 
 
 function DoExit() {
+    # turn off the led
+    LedOff
     # return trigger to it's original value
     SetLedTrigger "$TRIGGER" "$LED"
     exit 0
@@ -81,11 +83,18 @@ function DoStatusLoop() {
             off_time="$(printf "0.%02d" "$(( 100 - utilization ))")"
         fi
 
-        LedOn
-        $SLEEP "$on_time"
+        if [[ $on_time != 0 ]]; then
+            LedOn
+            $SLEEP "$on_time"
+        fi
 
-        LedOff
-        $SLEEP "$off_time"
+        # if off_time is zero, don't turn led off so it will remain on
+        # this allows a steady 100% cpu usage to show as a continuous solid
+        # led instead of briefly turning off
+        if [[ $off_time != 0 ]]; then
+            LedOff
+            $SLEEP "$off_time"
+        fi
     done
 }
 
