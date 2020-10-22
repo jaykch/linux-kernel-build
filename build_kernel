@@ -15,8 +15,8 @@ declare -r STATUS_LED="./status_led"
 
 # declare constants for our git repositories
 declare -r KERNEL_REPO="https://github.com/raspberrypi/linux"
-declare -r PROJECT_REPO="git@github.com:jaykch/linux-kernel-building"      # ssh
-#declare -r PROJECT_REPO="https://github.com/jaykch/linux-kernel-building" # https
+declare -r PROJECT_REPO="git@github.com:jaykch/linux-kernel-build"      # ssh
+#declare -r PROJECT_REPO="https://github.com/jaykch/linux-kernel-build" # https
 
 # where will we check out our git repos?
 declare -r KERNEL_DIR="./kernel"
