@@ -36,16 +36,20 @@ Here is the list of all the prerequisites you would need to install on your syst
 
 ### Installation
 1. Extract the s3770282-A2.tar.gz file provided.
-2. Go into the folder
+2. Go into the folder you extracted the files into
     ```sh
     cd s3770282-A2
     ```
-2. Go into the folder
+2. Start the build script in the folder
     ```sh
-    sudo ./kickstart
+    ./build_kernel
     ```
-
-
+   
+**Note:** If you are not a contributor to the project you can use the kickstart script with an included deploy key only valid for this project with only read access.
+   ```sh 
+   sudo ./kickstart
+   ```
+    
 ## Author
 * **Jay Kumar** - *Complete Development* - [jaykch.com](http://www.jaykch.com/)
 
