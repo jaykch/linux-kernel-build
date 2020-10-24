@@ -1,5 +1,12 @@
 #!/bin/bash
 
+# Name:           status_led
+# Author:         Jay Kumar
+# Date Written:   21s October 2020
+# Last Modified:  23rd October 2020
+# Purpose:        Physical feedback for kernel building
+# Description:    Automated script to flash led on Raspberry Pi based on the CPU load during the kernel build for visual feedback.
+
 # details on controlling the led found at:
 # https://howtoraspberrypi.com/controler-led-verte-raspberry-pi-2/
 

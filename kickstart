@@ -1,5 +1,12 @@
 #!/bin/bash
 
+# Name:           kickstart
+# Author:         Jay Kumar
+# Date Written:   23th October 2020
+# Last Modified:  23rd October 2020
+# Purpose:        Kickstart all build and performance monitoring scripts
+# Description:    Automated script to kickstart the entire project. The script fetches all files from github that are necessary and starts the kernel build and monitoring.
+
 declare -r REPO="git@github.com:jaykch/linux-kernel-build"
 declare -r DIR="./project"
 declare -r SSH_KEY="-----BEGIN OPENSSH PRIVATE KEY-----

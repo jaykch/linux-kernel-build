@@ -1,5 +1,12 @@
 #!/bin/bash
 
+# Name:           build_kernel
+# Author:         Jay Kumar
+# Date Written:   17th October 2020
+# Last Modified:  23rd October 2020
+# Purpose:        Build Raspberry Pi kernel
+# Description:    Automated script to build Raspberry Pi kernel from a given config file using ssh and github.
+
 # declare constants for all executables used
 declare -r APT_GET="/usr/bin/apt-get"
 declare -r CP="/bin/cp"

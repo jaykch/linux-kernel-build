@@ -1,5 +1,12 @@
 #!/bin/bash
 
+# Name:           performance_monitor
+# Author:         Jay Kumar
+# Date Written:   18th October 2020
+# Last Modified:  23rd October 2020
+# Purpose:        Monitor kernel building performance for Raspberry Pi
+# Description:    Automated script to monitor Raspberry Pi performance like CPU load, temperature etc. during a fresh kernel build and writing it to a kernel_performance_data.txt file.
+
 # what executables will we use?
 declare -r CUT="/usr/bin/cut"
 declare -r DATE="/bin/date"
