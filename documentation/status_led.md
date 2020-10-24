@@ -17,3 +17,6 @@ CPU utilization will cause the CPU to light for one half of a second.
 
 status_led will continue indefinitely. To gracefully terminate
 status_led, send a USR2 signal to it's process ID.
+
+## AUTHOR
+Jay Kumar

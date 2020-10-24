@@ -26,3 +26,6 @@ kernel. It performs the following steps.
 6. Backup the existing kernel files
 7. Install the new kernel files
 8. Reboot the system to the new kernel
+
+## AUTHOR
+Jay Kumar
